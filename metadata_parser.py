@@ -1,10 +1,16 @@
 import importlib
 import importlib.metadata
 import requests
+import json
 from metadata_validator import MetadataAnalyzer
 from bs4 import BeautifulSoup
 import gem
 import subprocess
+import os
+import re
+import yaml
+import pkg_resources
+from collections.abc import Iterable
 
 '''
 PUBLIC REPO LIST
@@ -21,75 +27,125 @@ repo_list = {
 FETCH AND PARSE METADATA FROM PUBLIC REPO
 '''
 
-class MetadataParser:
-	def __init__(self,package_name,repo="PYTHON_REPO"):
-		if repo == 'PYTHON_REPO':
-			self.repo = repo_list[repo]+package_name+"/json"
-		elif repo == 'GEMS_REPO':
-			self.repo = repo_list[repo]+package_name+".json"
-		else:
-			self.repo = repo_list[repo]+package_name
+class ParseMetadata:
+	def __init__(self,repo):
+		self.repo = repo
 	
-	
-	def FetchPackageMetadata(self):
-		url = self.repo
-		response = requests.get(url)
-		if response.status_code == 200:
-			return response.json()
-		else:
-			return None
 		
-	def ParsePackageMetadata(self):
-		return "Hello World"
-
+	def ParseMetadata(self, metadata,location):
+		if self.repo == 'PYTHON_REPO':
+			return self.ParsePythonPackageMetadata(metadata,location)
+		elif self.repo == 'NPM_REPO':
+			return self.ParseNpmPackageMetadata(metadata,location)
+		else:
+			return 'Hello World'
+			
+	def ParsePythonPackageMetadata(self,metadata,location):
+		parsed_metadata = {}
+		if metadata:
+			if location == 'remote':
+				parsed_metadata['name'] = metadata['info']['name']
+				parsed_metadata['version'] = metadata['info']['version']
+				parsed_metadata['summary'] = metadata['info']['summary']
+				parsed_metadata['author'] = metadata['info']['author']
+				parsed_metadata['maintainer'] = metadata['info']['maintainer']
+				parsed_metadata['license'] = metadata['info']['license']
+				parsed_metadata['project-url']= metadata['info']['home_page']
+				parsed_metadata['dependencies'] = metadata['info']['requires_dist']
+			
+			else:
+				parsed_metadata['name'] = metadata['name']
+				parsed_metadata['version'] = metadata['version']
+				parsed_metadata['summary'] = metadata['summary']
+				parsed_metadata['author'] = metadata['author']
+				parsed_metadata['maintainer'] = metadata['maintainer']
+				parsed_metadata['license'] = metadata['license']
+				parsed_metadata['project-url']= metadata['home-page']
+				parsed_metadata['dependencies'] = metadata['requires-dist']
+				parsed_metadata['python-specific'] = {}
+		
+		return parsed_metadata
+	
+	def ParseNpmPackageMetadata(self,metadata,location):
+		
+		parsed_metadata = {}
+		parsed_metadata['name'] = metadata['name'] if 'name' in metadata.keys() else None
+		parsed_metadata['version'] = metadata['version'] if 'version' in metadata.keys() else None
+		parsed_metadata['summary'] = metadata['description'] if 'description' in metadata.keys() else None
+		parsed_metadata['maintainer'] = metadata['maintainers'] if 'maintainers' in metadata.keys() else None
+		parsed_metadata['license'] = metadata['license'] if 'license' in metadata.keys() else None
+		parsed_metadata['author'] = metadata['author'] if 'author' in metadata.keys() else None
+		parsed_metadata['project-url']= metadata['homepage'] if 'homepage' in metadata.keys() else None
+		parsed_metadata['dependencies'] = metadata['dependencies'] if 'dependencies' in metadata.keys() else None
+		parsed_metadata['versions'] = metadata['versions'] if 'versions' in metadata.keys() else None
+		return parsed_metadata
+			
 
 '''
 CHECK AND FETCH LOCAL PACKAGE METADATA
 '''
-class LocalMetadataInfo:
-	def __init__(self,repo="PYTHON_REPO"):
+
+class FetchMetadata:
+	def __init__(self,package_name,repo):
+		self.package_name = package_name
 		self.repo = repo
+		if repo == 'PYTHON_REPO':
+			self.url = repo_list[repo]+package_name+"/json"
+		elif repo == 'GEMS_REPO':
+			self.url = repo_list[repo]+package_name+".json"
+		else:
+			self.url = repo_list[repo]+package_name+"/latest"
 	
 	def IsPythonPackageInstalled(self,package_name):
 		try:
-			importlib.import_module(package_name)
-			return True
+			metadata = importlib.metadata.metadata(package_name)
+			return metadata
+
 		except ModuleNotFoundError:
-			return False
+			return None
 	
 	def IsNpmPackageInstalled(self,package_name):
-		command = ["npm", "list", "-g", package_name]
+		command = ["npm", "view", "-g", package_name, "--json"]
 		output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		if output.returncode == 0:
-			return True
+			return json.loads(output.stdout.decode())
 		else:
-			return False
+			return None
+		
+		
+	def FetchLocalMetadata(self):
+		if self.repo == 'PYTHON_REPO':
+			return self.IsPythonPackageInstalled(self.package_name)
+		elif self.repo == 'NPM_REPO':
+			return self.IsNpmPackageInstalled(self.package_name)
+		else:
+			return 'Hello World'
 
-	def IsRubyPackageInstalled(self, package_name):
-		command = ["gem", "list", "-i", package_name]
-		output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		if output.returncode == 0:
-			return True
+
+	def FetchRemoteMetadata(self):
+		url = self.url
+		response = requests.get(url)
+		if response.status_code == 200:
+			return json.loads(response.content)
 		else:
-			return False
-			
-	def IsPackageInstalled(self,package_name):
-		if self.repo == "PYTHON_REPO":
-			return self.IsPythonPackageInstalled(package_name)
-		elif self.repo == "NPM_REPO":
-			return self.IsNpmPackageInstalled(package_name)
-		else:
-			return self.IsRubyPackageInstalled(package_name)
+			return None
+
 
 '''
 DRIVER RELEASED TO CLIENT
 '''
-
-class MetadataInfo:
-	def FetchAndParse(package_name,repo):
-		md_parser = MetadataParser(package_name,repo)
-		return md_parser.FetchPackageMetadata()
+class Parser:
+	def __init__(self,package_name,repo):
+		self.fetcher = FetchMetadata(package_name,repo)
+		self.parser = ParseMetadata(repo)
+		self.package_name = package_name
 	
-	def IsPackageInstalled(package_name,repo):
-		b_md_info = LocalMetadataInfo(repo)
-		return b_md_info.IsPackageInstalled(package_name)
+	def FetchAndParseLocal(self):
+		#return self.fetcher.FetchLocalMetadata()
+		#return self.parser.ParseMetadata(self.fetcher.FetchLocalMetadata(),'local')
+		return pkg_resources.get_distribution(self.package_name)
+		
+	def FetchAndParseRemote(self):
+		#return self.fetcher.FetchRemoteMetadata()
+		return self.parser.ParseMetadata(self.fetcher.FetchRemoteMetadata(),'remote')
+		
