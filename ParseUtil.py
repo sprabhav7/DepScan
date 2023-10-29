@@ -2,7 +2,7 @@ import importlib
 import importlib.metadata
 import requests
 import json
-from metadata_validator import MetadataAnalyzer
+from MetadataAnalyzer import MetadataAnalyzer
 from bs4 import BeautifulSoup
 import gem
 import subprocess
@@ -23,10 +23,6 @@ repo_list = {
 }
 
 
-'''
-FETCH AND PARSE METADATA FROM PUBLIC REPO
-'''
-
 class ParseMetadata:
 	def __init__(self,repo):
 		self.repo = repo
@@ -44,25 +40,25 @@ class ParseMetadata:
 		parsed_metadata = {}
 		if metadata:
 			if location == 'remote':
-				parsed_metadata['name'] = metadata['info']['name']
-				parsed_metadata['version'] = metadata['info']['version']
-				parsed_metadata['summary'] = metadata['info']['summary']
-				parsed_metadata['author'] = metadata['info']['author']
-				parsed_metadata['maintainer'] = metadata['info']['maintainer']
-				parsed_metadata['license'] = metadata['info']['license']
-				parsed_metadata['project-url']= metadata['info']['home_page']
-				parsed_metadata['dependencies'] = metadata['info']['requires_dist']
+				parsed_metadata['name'] = metadata['info']['name'] if 'name' in metadata['info'].keys() else None
+				parsed_metadata['version'] = metadata['info']['version'] if 'version' in metadata['info'].keys() else None
+				parsed_metadata['summary'] = metadata['info']['summary'] if 'summary' in metadata['info'].keys() else None
+				parsed_metadata['author'] = metadata['info']['author'] if 'author' in metadata['info'].keys() else None
+				parsed_metadata['maintainer'] = metadata['info']['maintainer'] if 'maintainer' in metadata['info'].keys() else None
+				parsed_metadata['license'] = metadata['info']['license'] if 'license' in metadata['info'].keys() else None
+				parsed_metadata['project-url']= metadata['info']['home_page'] if 'home_page' in metadata['info'].keys() else None
+				parsed_metadata['dependencies'] = metadata['info']['requires_dist'] if 'requires_dist' in metadata['info'].keys() else None
+				parsed_metadata['versions'] = metadata['releases'] if 'releases' in metadata.keys() else None
 			
 			else:
-				parsed_metadata['name'] = metadata['name']
-				parsed_metadata['version'] = metadata['version']
-				parsed_metadata['summary'] = metadata['summary']
-				parsed_metadata['author'] = metadata['author']
-				parsed_metadata['maintainer'] = metadata['maintainer']
-				parsed_metadata['license'] = metadata['license']
-				parsed_metadata['project-url']= metadata['home-page']
-				parsed_metadata['dependencies'] = metadata['requires-dist']
-				parsed_metadata['python-specific'] = {}
+				parsed_metadata['name'] = metadata['name'] if 'name' in metadata.keys() else None
+				parsed_metadata['version'] = metadata['version'] if 'version' in metadata.keys() else None
+				parsed_metadata['summary'] = metadata['summary'] if 'summary' in metadata.keys() else None
+				parsed_metadata['author'] = metadata['author'] if 'author' in metadata.keys() else None
+				parsed_metadata['maintainer'] = metadata['maintainer'] if 'maintainer' in metadata.keys() else None
+				parsed_metadata['license'] = metadata['license'] if 'license' in metadata.keys() else None
+				parsed_metadata['project-url']= metadata['home-page'] if 'home_page' in metadata.keys() else None
+				parsed_metadata['dependencies'] = metadata['requires-dist'] if 'requires_dist' in metadata.keys() else None
 		
 		return parsed_metadata
 	
@@ -77,13 +73,15 @@ class ParseMetadata:
 		parsed_metadata['author'] = metadata['author'] if 'author' in metadata.keys() else None
 		parsed_metadata['project-url']= metadata['homepage'] if 'homepage' in metadata.keys() else None
 		parsed_metadata['dependencies'] = metadata['dependencies'] if 'dependencies' in metadata.keys() else None
-		parsed_metadata['versions'] = metadata['versions'] if 'versions' in metadata.keys() else None
+		if location == 'remote':
+			parsed_metadata['versions'] = metadata['versions'] if 'versions' in metadata.keys() else None
+			command = ["npm", "show", "-g", metadata['name'] , "--json"]
+			output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			if output.returncode == 0:
+				parsed_metadata['version'] = json.loads(output.stdout.decode())['version'] 
+				parsed_metadata['dependencies'] = json.loads(output.stdout.decode())['dependencies']
 		return parsed_metadata
-			
 
-'''
-CHECK AND FETCH LOCAL PACKAGE METADATA
-'''
 
 class FetchMetadata:
 	def __init__(self,package_name,repo):
@@ -94,7 +92,7 @@ class FetchMetadata:
 		elif repo == 'GEMS_REPO':
 			self.url = repo_list[repo]+package_name+".json"
 		else:
-			self.url = repo_list[repo]+package_name+"/latest"
+			self.url = repo_list[repo]+package_name
 	
 	def IsPythonPackageInstalled(self,package_name):
 		try:
@@ -126,14 +124,11 @@ class FetchMetadata:
 		url = self.url
 		response = requests.get(url)
 		if response.status_code == 200:
-			return json.loads(response.content)
+			return json.loads(response.content.decode())
 		else:
 			return None
 
 
-'''
-DRIVER RELEASED TO CLIENT
-'''
 class Parser:
 	def __init__(self,package_name,repo):
 		self.fetcher = FetchMetadata(package_name,repo)
@@ -142,8 +137,7 @@ class Parser:
 	
 	def FetchAndParseLocal(self):
 		#return self.fetcher.FetchLocalMetadata()
-		#return self.parser.ParseMetadata(self.fetcher.FetchLocalMetadata(),'local')
-		return pkg_resources.get_distribution(self.package_name)
+		return self.parser.ParseMetadata(self.fetcher.FetchLocalMetadata(),'local')
 		
 	def FetchAndParseRemote(self):
 		#return self.fetcher.FetchRemoteMetadata()
