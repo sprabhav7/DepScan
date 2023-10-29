@@ -44,7 +44,9 @@ class ParseMetadata:
 				parsed_metadata['version'] = metadata['info']['version'] if 'version' in metadata['info'].keys() else None
 				parsed_metadata['summary'] = metadata['info']['summary'] if 'summary' in metadata['info'].keys() else None
 				parsed_metadata['author'] = metadata['info']['author'] if 'author' in metadata['info'].keys() else None
+				parsed_metadata['author-email'] = metadata['info']['author_email'] if 'author_email' in metadata['info'].keys() else None
 				parsed_metadata['maintainer'] = metadata['info']['maintainer'] if 'maintainer' in metadata['info'].keys() else None
+				parsed_metadata['maintainer-email'] = metadata['info']['maintainer_email'] if 'maintainer_email' in metadata['info'].keys() else None
 				parsed_metadata['license'] = metadata['info']['license'] if 'license' in metadata['info'].keys() else None
 				parsed_metadata['project-url']= metadata['info']['home_page'] if 'home_page' in metadata['info'].keys() else None
 				parsed_metadata['dependencies'] = metadata['info']['requires_dist'] if 'requires_dist' in metadata['info'].keys() else None
@@ -56,6 +58,8 @@ class ParseMetadata:
 				parsed_metadata['summary'] = metadata['summary'] if 'summary' in metadata.keys() else None
 				parsed_metadata['author'] = metadata['author'] if 'author' in metadata.keys() else None
 				parsed_metadata['maintainer'] = metadata['maintainer'] if 'maintainer' in metadata.keys() else None
+				parsed_metadata['author-email'] = metadata['author-email'] if 'author-email' in metadata.keys() else None
+				parsed_metadata['maintainer-email'] = metadata['maintainer-email'] if 'maintainer-email' in metadata.keys() else None
 				parsed_metadata['license'] = metadata['license'] if 'license' in metadata.keys() else None
 				parsed_metadata['project-url']= metadata['home-page'] if 'home_page' in metadata.keys() else None
 				parsed_metadata['dependencies'] = metadata['requires-dist'] if 'requires_dist' in metadata.keys() else None
@@ -63,7 +67,6 @@ class ParseMetadata:
 		return parsed_metadata
 	
 	def ParseNpmPackageMetadata(self,metadata,location):
-		
 		parsed_metadata = {}
 		parsed_metadata['name'] = metadata['name'] if 'name' in metadata.keys() else None
 		parsed_metadata['version'] = metadata['version'] if 'version' in metadata.keys() else None
