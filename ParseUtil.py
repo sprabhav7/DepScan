@@ -53,16 +53,20 @@ class ParseMetadata:
 				parsed_metadata['versions'] = metadata['releases'] if 'releases' in metadata.keys() else None
 			
 			else:
-				parsed_metadata['name'] = metadata['name'] if 'name' in metadata.keys() else None
-				parsed_metadata['version'] = metadata['version'] if 'version' in metadata.keys() else None
-				parsed_metadata['summary'] = metadata['summary'] if 'summary' in metadata.keys() else None
-				parsed_metadata['author'] = metadata['author'] if 'author' in metadata.keys() else None
-				parsed_metadata['maintainer'] = metadata['maintainer'] if 'maintainer' in metadata.keys() else None
-				parsed_metadata['author-email'] = metadata['author-email'] if 'author-email' in metadata.keys() else None
-				parsed_metadata['maintainer-email'] = metadata['maintainer-email'] if 'maintainer-email' in metadata.keys() else None
-				parsed_metadata['license'] = metadata['license'] if 'license' in metadata.keys() else None
-				parsed_metadata['project-url']= metadata['home-page'] if 'home_page' in metadata.keys() else None
-				parsed_metadata['dependencies'] = metadata['requires-dist'] if 'requires_dist' in metadata.keys() else None
+				parsed_metadata['name'] = metadata['name'] if 'Name' in metadata.keys() else None
+				parsed_metadata['version'] = metadata['version'] if 'Version' in metadata.keys() else None
+				parsed_metadata['summary'] = metadata['summary'] if 'Summary' in metadata.keys() else None
+				parsed_metadata['author'] = metadata['author'] if 'Author' in metadata.keys() else None
+				parsed_metadata['maintainer'] = metadata['maintainer'] if 'Maintainer' in metadata.keys() else None
+				parsed_metadata['author-email'] = metadata['author-email'] if 'Author-email' in metadata.keys() else None
+				parsed_metadata['maintainer-email'] = metadata['maintainer-email'] if 'Maintainer-email' in metadata.keys() else None
+				parsed_metadata['license'] = metadata['license'] if 'License' in metadata.keys() else None
+				parsed_metadata['project-url']= metadata['home-page'] if 'Home_page' in metadata.keys() else None
+				parsed_metadata['dependencies'] = metadata['requires-dist'] if 'Requires-Dist' in metadata.keys() else None
+			
+		for key,value in parsed_metadata.items():
+			if value == '':
+				parsed_metadata[key] = None
 		
 		return parsed_metadata
 	
