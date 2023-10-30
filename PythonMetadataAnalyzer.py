@@ -1,7 +1,9 @@
 import importlib
 import importlib.metadata
 import requests
+import hashlib
 import pkg_resources
+import pkgutil
 from bs4 import BeautifulSoup
 
 
@@ -34,7 +36,7 @@ class PythonMetadataAnalyzer:
 			self.ValidateDependencies()
 			self.AnalyzeAuthors()
 			self.AnalyzeMaintainers()
-			self.ValidateChecksum()
+			self.ValidateLocalChecksum()
 			self.AnalyzeProjectURL()'''
 		return self.res
 			
@@ -57,21 +59,38 @@ class PythonMetadataAnalyzer:
 			
 	def AnalyzeAuthor(self):
 		if self.local_metadata['author'] != self.remote_metadata['author']:
-			self.res.update({'author':{'ALERT':f'Remote package {self.remote_metadata["author"]} does not match local package {self.local_metadata["author"]}.'}}) 
+			self.res.update({'author':{'ALERT':f'Remote package : {self.remote_metadata["author"]} ; Local package : {self.local_metadata["author"]}.'}}) 
 		
 		if self.local_metadata['author-email'] != self.remote_metadata['author-email']:
-			self.res.update({'author-email':{'ALERT':f'Remote package {self.remote_metadata["author-email"]} does not match local package {self.local_metadata["author-email"]}.'}}) 
+			self.res.update({'author-email':{'ALERT':f'Remote package : {self.remote_metadata["author-email"]} ; Local package : {self.local_metadata["author-email"]}.'}}) 
 	
 	def AnalyzeMaintainers(self):
 		if self.local_metadata['maintainer'] != self.remote_metadata['maintainer']:
-			self.res.update({'maintainer':{'ALERT':f'Remote package {self.remote_metadata["maintainer"]} does not match local package {self.local_metadata["maintainer"]}.'}})
+			self.res.update({'maintainer':{'ALERT':f'Remote package : {self.remote_metadata["maintainer"]} ; Local package : {self.local_metadata["maintainer"]}.'}})
 			
 		if self.local_metadata['maintainer-email'] != self.remote_metadata['maintainer-email']:
-			self.res.update({'maintainer-email':{'ALERT':f'Remote package {self.remote_metadata["maintainer-email"]} does not match local package {self.local_metadata["maintainer-email"]}.'}}) 
-	
+			self.res.update({'maintainer-email':{'ALERT':f'Remote package : {self.remote_metadata["maintainer-email"]} ; Local package : {self.local_metadata["maintainer-email"]}.'}}) 
+	'''
+	def ValidateLocalChecksum(self):
+		pkg_sha256 = self.remote_metadata['versions'][self.local_metadata['version']][0]['digests']['sha256']
+		print(pkg_sha256)
+		exit(1)
+		if 'version' in self.res.keys():
+			 #do some errors stuff
+			 return
+			 
+		package_data = pkgutil.get_data(self.local_metadata['name'], "__init__.py")
+		if package_data is None:
+			raise FileNotFoundError("Package not found or has no '__init__.py' file")
+		
+		hash_algorithm = hashlib.sha256()  # You can choose a different hashing algorithm
+		hash_algorithm.update(package_data)
+		calculated_hash = hash_algorithm.hexdigest()
+		print(calculated_hash)
+	'''	
 	
 	def AnalyzeTypoSquatting(self, package_name):
 		return 'Hello World'
 	
-	def DependencyConfusionAttack(self,package_name):
+	def AnalyzeDependencyConfusion(self,package_name):
 		return 'Hello World'
