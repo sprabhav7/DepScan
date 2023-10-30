@@ -61,12 +61,13 @@ class ParseMetadata:
 				parsed_metadata['author-email'] = metadata['author-email'] if 'Author-email' in metadata.keys() else None
 				parsed_metadata['maintainer-email'] = metadata['maintainer-email'] if 'Maintainer-email' in metadata.keys() else None
 				parsed_metadata['license'] = metadata['license'] if 'License' in metadata.keys() else None
-				parsed_metadata['project-url']= metadata['home-page'] if 'Home_page' in metadata.keys() else None
+				parsed_metadata['project-url']= metadata['home-page'] if 'Home-page' in metadata.keys() else None
 				parsed_metadata['dependencies'] = metadata['requires-dist'] if 'Requires-Dist' in metadata.keys() else None
 			
 		for key,value in parsed_metadata.items():
 			if value == '':
 				parsed_metadata[key] = None
+		
 		
 		return parsed_metadata
 	
