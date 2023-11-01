@@ -23,10 +23,17 @@ class RubyMetadataAnalyzer:
 		self.AnalyzeBaseFeatureSet()
 		
 		
-		if self.local_metadata is None:
+		if self.local_metadata is not None:
 			print('Reverting to public popularity metrics of the package...')
 			print(separator)
-			
+		
+			self.AnalyzeVersions() #maybe remove
+			self.AnalyzeAuthor()
+			self.AnalyzeProjectURL()
+			self.AnalyzeSummary()
+			self.AnalyzeLicense()
+			self.AnalyzeContextAge()
+			self.AnalyzeDependencies()
 			self.AnalyzePopularityMetrics()
 			self.AnalyzeMissingVersions()
 			self.AnalyzeIncreasingVersions()
@@ -36,13 +43,11 @@ class RubyMetadataAnalyzer:
 		else:
 			print('Analyzing package with local metadata data as context...')
 			print(separator)
-			self.AnalyzeVersions() #maybe remove
-			self.AnalyzeAuthor()
-			self.AnalyzeProjectURL()
-			self.AnalyzeSummary()
-			self.AnalyzeLicense()
-			self.AnalyzeContextAge()
-			self.AnalyzeDependencies()
+			
+			self.AnalyzePopularityMetrics()
+			self.AnalyzeMissingVersions()
+			self.AnalyzeIncreasingVersions()
+			self.AnalyzePackageURL()
 
 		return self.res
 			
