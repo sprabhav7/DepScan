@@ -23,7 +23,7 @@ class NpmMetadataAnalyzer:
 		
 		
 		if self.local_metadata is None:
-			print('Analyzing package with local metadata data as context...')
+			print('Reverting to public popularity metrics of the package...')
 			print(separator)
 			
 			self.AnalyzePopularityMetrics()
@@ -33,9 +33,8 @@ class NpmMetadataAnalyzer:
 			
 
 		else:
-			print('Reverting to public popularity metrics of the package...')
+			print('Analyzing package with local metadata data as context...')
 			print(separator)
-			
 			self.AnalyzeVersions()
 			self.AnalyzeAuthor()
 			self.AnalyzeMaintainers()
@@ -80,8 +79,8 @@ class NpmMetadataAnalyzer:
 		
 		remote_maintainer_list = [x["name"] for x in self.remote_metadata['versions'][self.local_metadata['version']]['maintainers']]
 		remote_maintainer_email_list = [x["email"] for x in self.remote_metadata['versions'][self.local_metadata['version']]['maintainers']]
-		local_maintainer_list = [x.split(" ")[0] for x in self.local_metadata['maintainer']]
-		local_maintainer_email_list = [x.split(" ")[1].replace("<","").replace(">","") for x in self.local_metadata['maintainer']]
+		local_maintainer_list = [x.split(" ")[0] for x in self.local_metadata['maintainer']] if self.local_metadata['maintainer'] else None
+		local_maintainer_email_list = [x.split(" ")[1].replace("<","").replace(">","") for x in self.local_metadata['maintainer']] if self.local_metadata['maintainer'] else None
 		if collections.Counter(remote_maintainer_list) != collections.Counter(local_maintainer_list):
 			self.res.update({'maintainers':{'ALERT':f'AnalyzeMaintainers:Maintainers mismatch between local and remote packages'}})
 			
@@ -124,12 +123,18 @@ class NpmMetadataAnalyzer:
 		
 		remote_created_date = datetime.datetime.strptime(self.remote_metadata['time']['created'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
 		remote_timestamp_for_local = datetime.datetime.strptime(self.remote_metadata['time'][self.local_metadata['version']].split('.')[0], '%Y-%m-%dT%H:%M:%S')
-		local_timestamp_for_local = datetime.datetime.strptime(self.local_metadata['time'][self.local_metadata['version']].split('.')[0], '%Y-%m-%dT%H:%M:%S')
-		local_created_date = datetime.datetime.strptime(self.local_metadata['time']['created'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
 
-		
-		if remote_created_date != local_created_date or remote_timestamp_for_local != local_timestamp_for_local:
-			self.res.update({'age':{'ALERT':f'AnalyzeContextAge:Timestamp mismatch between local and remote packages'}})
+		try:
+			package_path = f'/usr/local/lib/node_modules/{self.local_metadata["name"]}'
+			creation_timestamp = os.path.getctime(package_path)
+			install_date = str(datetime.datetime.fromtimestamp(creation_timestamp).date())+"T"+str(datetime.datetime.fromtimestamp(creation_timestamp).time()).split('.')[0]
+			install_date = datetime.datetime.strptime(install_date, '%Y-%m-%dT%H:%M:%S')
+			
+			if remote_created_date > install_date or install_date < remote_timestamp_for_local:
+				self.res.update({'age':{'ALERT':f'AnalyzeContextAge:Timestamp mismatch between local and remote packages'}})
+			
+		except:
+			self.res.update({'age':{'WARN':f'AnalyzeContextAge:Unable to fetch Local Metadata timestamps'}})
 		
 	def AnalyzeDependencies(self):
 		print('Analyzing dependencies based on context...')
@@ -144,33 +149,29 @@ class NpmMetadataAnalyzer:
 	
 	def AnalyzePopularityMetrics(self):
 		print('Analyzing popularity...')
-		print(separator)
-		api_url = f'https://pypistats.org/api/packages/{self.remote_metadata["name"]}/recent'
-		response = requests.get(api_url)
-		if response.status_code == 200:
-			downloads = response.json()['data']
-			week_download_stats = downloads['last_week']
-			month_download_stats = downloads['last_month']
-			day_download_stats = downloads['last_day']
+		
+		api_url = f'https://api.npmjs.org/downloads/point/last-week/{self.remote_metadata["name"]}'
+		res = requests.get(api_url)
+		if res.status_code != 200:
+			self.res.update({'popularity':{'ALERT':f'AnalyzePopularityMetrics: Unable to fetch package popularity metrics'}})
+			return
+		
+		if res.json()['downloads'] < 10000:
+			self.res.update({'popularity':{'ALERT':f'AnalyzePopularityMetrics: Package is not popular. Recommended test against attack patterns'}})
 			
-			# check the three values
-			if day_download_stats == week_download_stats and week_download_stats == month_download_stats:
-				self.res.update({'popularity':{'WARN':f'AnalyzePopularityMetrics: Package is new, recommended validation against attack patterns'}})
-			
-			if int(week_download_stats) < 10000:
-				self.res.update({'popularity':{'ALERT':f'AnalyzePopularityMetrics: Package below threshold for downloads, recommended validation against attack patterns'}})
-		else:
-			return None		
 	
 	def AnalyzeMissingVersions(self):
 		print('Analyzing missing versions...')
 		print(separator)
 		
-		versions = list(map(lambda x : int(x.split('.')[0]),list(self.remote_metadata['versions'].keys())))
+		versions = set(map(lambda x : int(x.split('.')[0]),list(self.remote_metadata['versions'].keys())))
+		
 		skipped_list = []
+		
 		for i in range(max(versions)):
 			if i not in versions:
 				skipped_list.append(i)
+				break
 		
 		if skipped_list:
 			self.res.update({'missing-versions':{'ALERT':f'AnalyzeMissingVersions: Versions {skipped_list} have been skipped'}})
@@ -179,7 +180,7 @@ class NpmMetadataAnalyzer:
 		print('Analyzing strictly increasing versions...')
 		print(separator)
 		
-		versions = list(map(lambda x : float(x.split('.')[0]+"."+x.split('.')[1]),list(self.remote_metadata['versions'].keys())))
+		versions = list(set(map(lambda x : int(x.split('.')[0]),list(self.remote_metadata['versions'].keys()))))
 		
 		for i in range(len(versions)-1):
 			if versions[i+1]-versions[i] < 0:
@@ -196,11 +197,3 @@ class NpmMetadataAnalyzer:
 		# Verify the SSL/TLS certificate
 		if not response.ok:
 			self.res.update({'project-url':{'ALERT':f'AnalyzePackageURL: Invalid certificate detected for the package'}})
-        
-        
-        
-        
-        
-        
-        
-        
