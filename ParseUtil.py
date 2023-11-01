@@ -34,9 +34,11 @@ class ParseMetadata:
 		elif self.repo == 'NPM_REPO':
 			return self.ParseNpmPackageMetadata(metadata,location)
 		else:
-			return 'Hello World'
+			return self.ParseRubyPackageMetadata(metadata,location)
 			
 	def ParsePythonPackageMetadata(self,metadata,location):
+		if metadata is None:
+			return None
 		parsed_metadata = {}
 		if metadata:
 			if location == 'remote':
@@ -95,8 +97,32 @@ class ParseMetadata:
 				parsed_metadata['version'] = met_data['version'] 
 				parsed_metadata['dependencies'] = met_data['dependencies'] if 'dependencies' in met_data.keys() else None
 		return parsed_metadata
-
-
+	
+	def ParseRubyPackageMetadata(self,metadata,location):
+		if metadata is None:
+			return None
+		parsed_metadata = {}
+		parsed_metadata['name'] = metadata['name'] if 'name' in metadata.keys() else None
+		parsed_metadata['version'] = metadata['version'] if 'version' in metadata.keys() else None
+		parsed_metadata['license'] = metadata['licenses'] if 'licenses' in metadata.keys() else None
+		parsed_metadata['author'] = metadata['authors'] if 'authors' in metadata.keys() else None
+		parsed_metadata['metadata'] = metadata['metadata'] if 'metadata' in metadata.keys() else None
+		parsed_metadata['dependencies'] = metadata['dependencies'] if 'dependencies' in metadata.keys() else None
+		
+		if location == 'remote':
+			parsed_metadata['summary'] = metadata['info'] if 'info' in metadata.keys() else None
+			parsed_metadata['project-url']= metadata['homepage_uri'] if 'homepage_uri' in metadata.keys() else None
+			parsed_metadata['time'] = metadata['version_created_at'].split('T')[0] if 'time' in metadata.keys() else None
+			parsed_metadata['downloads'] = metadata['downloads'] if 'downloads' in metadata.keys() else None
+		else:
+			parsed_metadata['summary'] = metadata['description'] if 'description' in metadata.keys() else None
+			parsed_metadata['project-url']= metadata['homepage'] if 'homepage' in metadata.keys() else None
+			parsed_metadata['time'] = metadata['date'].split('T')[0] if 'date' in metadata.keys() else None
+								
+		
+		return parsed_metadata
+		
+		
 class FetchMetadata:
 	def __init__(self,package_name,repo):
 		self.package_name = package_name
@@ -115,6 +141,21 @@ class FetchMetadata:
 
 		except ModuleNotFoundError:
 			return None
+			
+	def IsRubyPackageInstalled(self,package_name):
+		try:
+			command = ["gem", "specification", package_name]
+			output = subprocess.check_output(command, universal_newlines=True, stderr=subprocess.STDOUT)
+			
+			for s in re.findall(r'--- !ruby[^ ]+\n',output): output = output.replace(s,'---\n')
+			for s in re.findall(r': !ruby[^ ]+\n',output): output = output.replace(s,':\n')
+			for s in re.findall(r'- !ruby[^ ]+\n[ ]+',output): output = output.replace(s,'- ')
+			
+			output = yaml.safe_load(output)
+			output['date'] = output['date'].strftime("%Y-%m-%dT%H:%M:%S")
+			return output
+		except subprocess.CalledProcessError as e:
+			return None
 	
 	def IsNpmPackageInstalled(self,package_name):
 		path = f'/usr/local/lib/node_modules/{package_name}/package.json'
@@ -131,7 +172,7 @@ class FetchMetadata:
 		elif self.repo == 'NPM_REPO':
 			return self.IsNpmPackageInstalled(self.package_name)
 		else:
-			return 'Hello World'
+			return self.IsRubyPackageInstalled(self.package_name)
 
 
 	def FetchRemoteMetadata(self):
