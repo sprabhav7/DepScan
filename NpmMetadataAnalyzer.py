@@ -14,7 +14,7 @@ separator = '-------------------------------------------------------------------
 class NpmMetadataAnalyzer:
 	def __init__(self, remote_metadata, local_metadata):
 		self.remote_metadata, self.local_metadata = remote_metadata, local_metadata
-		self.keys = ['name', 'version', 'summary', 'author', 'maintainer', 'time', 'keywords', 'project-url', 'license', 'dependencies']
+		self.keys = ['name', 'version', 'summary', 'author', 'maintainer', 'keywords', 'project-url', 'license', 'dependencies']
 		self.res = {}
 	
 	def analyze(self):
