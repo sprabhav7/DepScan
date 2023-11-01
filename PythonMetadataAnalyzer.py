@@ -67,12 +67,22 @@ class PythonMetadataAnalyzer:
 	def AnalyzeVersions(self):
 		print('Analyzing versions based on context...')
 		print(separator)
+		
+		if not self.local_metadata['version'] or not self.remote_metadata['versions']:
+			self.res.update({'FATAL':'AnalyzeVersionsTest:Versions metadata value missing'})
+			return
+		
 		if self.local_metadata['version'] and not self.local_metadata['version'] in self.remote_metadata['versions'].keys():
 			self.res.update({'version':{'ALERT':f'AnalyzeVersions:Version mismatch between local and remote packages'}}) 
 			
 	def AnalyzeAuthor(self):
 		print('Analyzing authors based on context...')
 		print(separator)
+		
+		if not self.remote_metadata['author'] or not self.remote_metadata['author-email']:
+			self.res.update({'FATAL':'AnalyzeAuthorTest:Authors metadata value missing'})
+			return
+		
 		if self.local_metadata['author'] != self.remote_metadata['author'] and not self.local_metadata['author'] in self.remote_metadata['author-email']:
 			self.res.update({'author':{'ALERT':f'AnalyzeAuthor:Author mismatch between local and remote packages'}}) 
 		
@@ -82,6 +92,11 @@ class PythonMetadataAnalyzer:
 	def AnalyzeMaintainers(self):
 		print('Analyzing maintainers based on context...')
 		print(separator)
+		
+		if not self.remote_metadata['maintainer'] or not self.remote_metadata['maintainer-email']:
+			self.res.update({'FATAL':'AnalyzeMaintainerTest:Maintainers metadata value missing'})
+			return
+		
 		if self.local_metadata['maintainer'] != self.remote_metadata['maintainer'] and self.local_metadata['maintainer'] not in self.remote_metadata['maintainer-email']:
 			self.res.update({'maintainer':{'ALERT':f'AnalyzeMaintainers:Maintainer mismatch between local and remote packages'}})
 			
@@ -104,6 +119,11 @@ class PythonMetadataAnalyzer:
 	def AnalyzeLicense(self):
 		print('Analyzing license based on context...')
 		print(separator)
+		
+		if not self.local_metadata['license'] or not self.remote_metadata['license']:
+			self.res.update({'FATAL':'AnalyzeLicenseTest:License metadata value missing'})
+			return
+		
 		if self.local_metadata['license'] != self.remote_metadata['license'] and self.local_metadata['license'][:3] not in self.remote_metadata['license']:
 			self.res.update({'license':{'ALERT':f'AnalyzeLicense:License mismatch between local and remote packages'}})
 	
@@ -135,6 +155,11 @@ class PythonMetadataAnalyzer:
 	def AnalyzeDependencies(self):
 		print('Analyzing license based on context...')
 		print(separator)
+		
+		if not self.remote_metadata['dependencies'] or not self.remote_metadata['dependencies']:
+			self.res.update({'FATAL':'AnalyzeDependenciesTest:Dependency metadata value missing'})
+			return
+		
 		if self.local_metadata['dependencies'] != self.remote_metadata['dependencies'] and self.local_metadata['dependencies'] not in self.remote_metadata['dependencies']:
 			self.res.update({'license':{'ALERT':f'AnalyzeDependencies: Dependency mismatch between local and remote packages'}})
 	
@@ -175,7 +200,7 @@ class PythonMetadataAnalyzer:
 		print('Analyzing strictly increasing versions...')
 		print(separator)
 		
-		versions = list(map(lambda x : float(x.split('.')[0]+"."+x.split('.')[1]),list(self.remote_metadata['versions'].keys())))
+		versions = list(set(map(lambda x : int(x.split('.')[0]),list(self.remote_metadata['versions'].keys()))))
 		
 		for i in range(len(versions)-1):
 			if versions[i+1]-versions[i] < 0:
@@ -186,9 +211,16 @@ class PythonMetadataAnalyzer:
 		print('Analyzing certificate validity of URL...')
 		print(separator)
 		
-		response = requests.head(self.remote_metadata['project-url'])
-		response.raise_for_status()
+		if self.remote_metadata['project-url'] is None:
+			self.res.update({'project-url':{'ALERT':f'AnalyzePackageURL: Package does not have a valid URL'}})
+			return
+		
+		try:
+			response = requests.head(self.remote_metadata['project-url'])
+			response.raise_for_status()
 
-		# Verify the SSL/TLS certificate
-		if not response.ok:
-			self.res.update({'project-url':{'ALERT':f'AnalyzePackageURL: Invalid certificate detected for the package'}})
+			# Verify the SSL/TLS certificate
+			if not response.ok:
+				self.res.update({'project-url':{'ALERT':f'AnalyzePackageURL: Invalid certificate detected for the package'}})
+		except:
+				self.res.update({'project-url':{'ALERT':f'AnalyzePackageURL: Failed to fetch certiciate for the package'}})
