@@ -29,5 +29,7 @@ class AnalysisBuilder:
 
 class MetadataAnalyzer:
 	def Analyzer(remote_metadata, local_metadata,repo):
+		if remote_metadata is None:
+			return {'FATAL':'MetadataAnalyzer:Unable to fetch metadata for package from public repository, check package information...'}
 		analysis_builder = AnalysisBuilder(repo)
 		return analysis_builder.analyze(remote_metadata, local_metadata)
