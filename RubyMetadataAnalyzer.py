@@ -7,6 +7,7 @@ import pkgutil
 import os
 import datetime
 import collections
+import subprocess
 from bs4 import BeautifulSoup
 
 separator = '---------------------------------------------------------------------------'
@@ -37,16 +38,12 @@ class RubyMetadataAnalyzer:
 			print(separator)
 			self.AnalyzeVersions() #maybe remove
 			self.AnalyzeAuthor()
-			
-			'''
-			self.AnalyzeMaintainers()
 			self.AnalyzeProjectURL()
 			self.AnalyzeSummary()
 			self.AnalyzeLicense()
-			self.AnalyzeKeywords()
-			self.AnalyzeDependencies()
 			self.AnalyzeContextAge()
-			'''
+			self.AnalyzeDependencies()
+
 		return self.res
 			
 	def AnalyzeBaseFeatureSet(self):
@@ -66,29 +63,15 @@ class RubyMetadataAnalyzer:
 	def AnalyzeVersions(self):
 		print('Analyzing versions based on context...')
 		print(separator)
-		if self.local_metadata['version'] and self.local_metadata['version']['version']  > self.remote_metadata['version']:
+		if self.local_metadata['version'] and self.local_metadata['version']['version']  not in self.remote_metadata['versions']:
 			self.res.update({'version':{'ALERT':f'AnalyzeVersions:Version mismatch between local and remote packages'}}) 
 			
 	def AnalyzeAuthor(self):
 		print('Analyzing authors based on context...')
 		print(separator)
-		if self.local_metadata['author'][0] != self.remote_metadata['author']:
-			self.res.update({'author':{'ALERT':f'AnalyzeAuthor:Author mismatch between local and remote packages {self.local_metadata["author"][0]}:{self.remote_metadata["author"]}'}})
-	
-	def AnalyzeMaintainers(self):
-		print('Analyzing maintainers based on context...')
-		print(separator)
-		
-		remote_maintainer_list = [x["name"] for x in self.remote_metadata['versions'][self.local_metadata['version']]['maintainers']]
-		remote_maintainer_email_list = [x["email"] for x in self.remote_metadata['versions'][self.local_metadata['version']]['maintainers']]
-		local_maintainer_list = [x.split(" ")[0] for x in self.local_metadata['maintainer']] if self.local_metadata['maintainer'] else None
-		local_maintainer_email_list = [x.split(" ")[1].replace("<","").replace(">","") for x in self.local_metadata['maintainer']] if self.local_metadata['maintainer'] else None
-		if collections.Counter(remote_maintainer_list) != collections.Counter(local_maintainer_list):
-			self.res.update({'maintainers':{'ALERT':f'AnalyzeMaintainers:Maintainers mismatch between local and remote packages'}})
-			
-		if collections.Counter(remote_maintainer_email_list) != collections.Counter(local_maintainer_email_list):
-			self.res.update({'maintainers-email':{'ALERT':f'AnalyzeMaintainers:Maintainers emails mismatch between local and remote packages'}})
-		
+		for author in self.local_metadata['author']:
+			if author not in self.remote_metadata['author']:
+				self.res.update({'author':{'ALERT':f'AnalyzeAuthor:Author mismatch between local and remote packages'}})
 	
 	def AnalyzeProjectURL(self):
 		print('Analyzing project url based on context...')
@@ -106,59 +89,30 @@ class RubyMetadataAnalyzer:
 	def AnalyzeLicense(self):
 		print('Analyzing license based on context...')
 		print(separator)
-		if self.local_metadata['license'] != self.remote_metadata['license']:
+		if collections.Counter(self.local_metadata['license']) != collections.Counter(self.remote_metadata['license']):
 			self.res.update({'license':{'ALERT':f'AnalyzeLicense:License mismatch between local and remote packages'}})
-	
-	def AnalyzeKeywords(self):
-		print('Analyzing keywords based on context...')
-		print(separator)
-		
-		remote_keywords_list = self.remote_metadata['keywords']
-		local_keywords_list = self.local_metadata['keywords']
-		
-		if collections.Counter(remote_keywords_list) != collections.Counter(local_keywords_list):
-			self.res.update({'keywords':{'ALERT':f'AnalyzeKeywords:Keywords mismatch between local and remote packages'}})
 	
 	def AnalyzeContextAge(self):
 		print('Analyzing age based on context...')
 		print(separator)
 		
-		remote_created_date = datetime.datetime.strptime(self.remote_metadata['time']['created'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
-		remote_timestamp_for_local = datetime.datetime.strptime(self.remote_metadata['time'][self.local_metadata['version']].split('.')[0], '%Y-%m-%dT%H:%M:%S')
-
-		try:
-			package_path = f'/usr/local/lib/node_modules/{self.local_metadata["name"]}'
-			creation_timestamp = os.path.getctime(package_path)
-			install_date = str(datetime.datetime.fromtimestamp(creation_timestamp).date())+"T"+str(datetime.datetime.fromtimestamp(creation_timestamp).time()).split('.')[0]
-			install_date = datetime.datetime.strptime(install_date, '%Y-%m-%dT%H:%M:%S')
-			
-			if remote_created_date > install_date or install_date < remote_timestamp_for_local:
-				self.res.update({'age':{'ALERT':f'AnalyzeContextAge:Timestamp mismatch between local and remote packages'}})
-			
-		except:
-			self.res.update({'age':{'WARN':f'AnalyzeContextAge:Unable to fetch Local Metadata timestamps'}})
+		if datetime.datetime.strptime(self.remote_metadata['time'], '%Y-%m-%d') < datetime.datetime.strptime(self.local_metadata['time'], '%Y-%m-%d'):
+			self.res.update({'age':{'WARN':f'AnalyzeContextAge:Invalid metadata timestamps'}})
+		
 		
 	def AnalyzeDependencies(self):
 		print('Analyzing dependencies based on context...')
 		print(separator)
 		
-		remote_dependency_list = list(self.remote_metadata['dependencies'].keys())
-		local_dependency_list = list(self.local_metadata['dependencies'].keys())
-		remote_dependency_val_list = list(self.remote_metadata['dependencies'].values())
-		local_dependency_val_list = list(self.local_metadata['dependencies'].values())
-		if collections.Counter(remote_dependency_list) != collections.Counter(local_dependency_list) or collections.Counter(remote_dependency_val_list) != collections.Counter(local_dependency_val_list):
+		remote_dependency_list = list(x['name'] for x in self.remote_metadata['dependencies']['runtime'])
+		local_dependency_list = list(x['name'] for x in self.local_metadata['dependencies'])
+		if collections.Counter(remote_dependency_list) != collections.Counter(local_dependency_list):
 			self.res.update({'dependencies':{'ALERT':f'AnalyzeDependencies: Dependency mismatch between local and remote packages'}})
 	
 	def AnalyzePopularityMetrics(self):
 		print('Analyzing popularity...')
 		
-		api_url = f'https://api.npmjs.org/downloads/point/last-week/{self.remote_metadata["name"]}'
-		res = requests.get(api_url)
-		if res.status_code != 200:
-			self.res.update({'popularity':{'ALERT':f'AnalyzePopularityMetrics: Unable to fetch package popularity metrics'}})
-			return
-		
-		if res.json()['downloads'] < 10000:
+		if self.remote_metadata['downloads']<10000:
 			self.res.update({'popularity':{'ALERT':f'AnalyzePopularityMetrics: Package is not popular. Recommended test against attack patterns'}})
 			
 	
@@ -166,7 +120,7 @@ class RubyMetadataAnalyzer:
 		print('Analyzing missing versions...')
 		print(separator)
 		
-		versions = set(map(lambda x : int(x.split('.')[0]),list(self.remote_metadata['versions'].keys())))
+		versions = set(map(lambda x : int(x.split('.')[0]),list(self.remote_metadata['versions'])))
 		
 		skipped_list = []
 		
@@ -182,7 +136,7 @@ class RubyMetadataAnalyzer:
 		print('Analyzing strictly increasing versions...')
 		print(separator)
 		
-		versions = list(set(map(lambda x : int(x.split('.')[0]),list(self.remote_metadata['versions'].keys()))))
+		versions = list(set(map(lambda x : int(x.split('.')[0]),list(self.remote_metadata['versions']))))
 		
 		for i in range(len(versions)-1):
 			if versions[i+1]-versions[i] < 0:
@@ -199,11 +153,3 @@ class RubyMetadataAnalyzer:
 		# Verify the SSL/TLS certificate
 		if not response.ok:
 			self.res.update({'project-url':{'ALERT':f'AnalyzePackageURL: Invalid certificate detected for the package'}})
-        
-        
-        
-        
-        
-        
-        
-        
