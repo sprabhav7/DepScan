@@ -116,6 +116,7 @@ class RubyMetadataAnalyzer:
 	
 	def AnalyzePopularityMetrics(self):
 		print('Analyzing popularity...')
+		print(separator)
 		
 		if self.remote_metadata['downloads']<10000:
 			self.res.update({'popularity':{'ALERT':f'AnalyzePopularityMetrics: Package is not popular. Recommended test against attack patterns'}})
