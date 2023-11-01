@@ -72,6 +72,8 @@ class ParseMetadata:
 		return parsed_metadata
 	
 	def ParseNpmPackageMetadata(self,metadata,location):
+		if metadata is None:
+			return None
 		parsed_metadata = {}
 		parsed_metadata['name'] = metadata['name'] if 'name' in metadata.keys() else None
 		parsed_metadata['version'] = metadata['version'] if 'version' in metadata.keys() else None
@@ -81,13 +83,17 @@ class ParseMetadata:
 		parsed_metadata['author'] = metadata['author'] if 'author' in metadata.keys() else None
 		parsed_metadata['project-url']= metadata['homepage'] if 'homepage' in metadata.keys() else None
 		parsed_metadata['dependencies'] = metadata['dependencies'] if 'dependencies' in metadata.keys() else None
+		parsed_metadata['time'] = metadata['time'] if 'time' in metadata.keys() else None
+		parsed_metadata['keywords'] = metadata['keywords'] if 'keywords' in metadata.keys() else None
+		parsed_metadata['downloads'] = metadata['downloads'] if 'downloads' in metadata.keys() else None
 		if location == 'remote':
 			parsed_metadata['versions'] = metadata['versions'] if 'versions' in metadata.keys() else None
 			command = ["npm", "show", "-g", metadata['name'] , "--json"]
 			output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			if output.returncode == 0:
-				parsed_metadata['version'] = json.loads(output.stdout.decode())['version'] 
-				parsed_metadata['dependencies'] = json.loads(output.stdout.decode())['dependencies']
+				met_data = json.loads(output.stdout.decode())
+				parsed_metadata['version'] = met_data['version'] 
+				parsed_metadata['dependencies'] = met_data['dependencies'] if 'dependencies' in met_data.keys() else None
 		return parsed_metadata
 
 
@@ -111,10 +117,10 @@ class FetchMetadata:
 			return None
 	
 	def IsNpmPackageInstalled(self,package_name):
-		command = ["npm", "view", "-g", package_name, "--json"]
-		output = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		if output.returncode == 0:
-			return json.loads(output.stdout.decode())
+		path = f'/usr/local/lib/node_modules/{package_name}/package.json'
+		if os.path.exists(path):
+			with open(path,'r') as f:
+				return json.load(f)
 		else:
 			return None
 		
