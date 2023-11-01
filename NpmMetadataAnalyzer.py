@@ -22,19 +22,10 @@ class NpmMetadataAnalyzer:
 		self.AnalyzeBaseFeatureSet()
 		
 		
-		if self.local_metadata is None:
+		if self.local_metadata is not None:
 			print('Reverting to public popularity metrics of the package...')
 			print(separator)
 			
-			self.AnalyzePopularityMetrics()
-			self.AnalyzeMissingVersions()
-			self.AnalyzeIncreasingVersions()
-			self.AnalyzePackageURL()
-			
-
-		else:
-			print('Analyzing package with local metadata data as context...')
-			print(separator)
 			self.AnalyzeVersions()
 			self.AnalyzeAuthor()
 			self.AnalyzeMaintainers()
@@ -44,6 +35,20 @@ class NpmMetadataAnalyzer:
 			self.AnalyzeKeywords()
 			self.AnalyzeDependencies()
 			self.AnalyzeContextAge()
+			self.AnalyzePopularityMetrics()
+			self.AnalyzeMissingVersions()
+			self.AnalyzeIncreasingVersions()
+			self.AnalyzePackageURL()
+			
+
+		else:
+			print('Analyzing package with local metadata data as context...')
+			print(separator)
+			
+			self.AnalyzePopularityMetrics()
+			self.AnalyzeMissingVersions()
+			self.AnalyzeIncreasingVersions()
+			self.AnalyzePackageURL()
 			
 		return self.res
 			
