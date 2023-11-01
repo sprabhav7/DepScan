@@ -5,6 +5,7 @@ import pkg_resources
 from bs4 import BeautifulSoup
 from PythonMetadataAnalyzer import PythonMetadataAnalyzer
 from NpmMetadataAnalyzer import NpmMetadataAnalyzer
+from RubyMetadataAnalyzer import RubyMetadataAnalyzer
 
 repo_list = {
 1: 'GEMS_REPO',
@@ -22,8 +23,8 @@ class AnalysisBuilder:
         elif self.repo == 'NPM_REPO':
         	analyzer = NpmMetadataAnalyzer(remote_metadata, local_metadata)
         else:
-        	print('In development...')
-        	exit(1)
+        	analyzer = RubyMetadataAnalyzer(remote_metadata, local_metadata)
+        	
         return analyzer.analyze()
 
 class MetadataAnalyzer:
