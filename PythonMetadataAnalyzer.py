@@ -12,7 +12,6 @@ separator = '-------------------------------------------------------------------
 
 class PythonMetadataAnalyzer:
 	def __init__(self, remote_metadata, local_metadata):
-		print('Initialized Python Analyzer...')
 		self.remote_metadata, self.local_metadata = remote_metadata, local_metadata
 		self.keys = ['name', 'version', 'summary', 'author', 'author-email', 'maintainer', 'maintainer-email', 'project-url', 'license', 'dependencies']
 		self.res = {}
@@ -21,18 +20,8 @@ class PythonMetadataAnalyzer:
 		print(separator)
 		self.AnalyzeBaseFeatureSet()
 			
-		if self.local_metadata is None:
+		if self.local_metadata is not None:
 			print('Analyzing package with local metadata data as context...')
-			print(separator)
-			
-			self.AnalyzePopularityMetrics()
-			self.AnalyzeMissingVersions()
-			self.AnalyzeIncreasingVersions()
-			self.AnalyzePackageURL()
-			
-
-		else:
-			print('Reverting to public popularity metrics of the package...')
 			print(separator)
 			
 			self.AnalyzeVersions()
@@ -43,6 +32,20 @@ class PythonMetadataAnalyzer:
 			self.AnalyzeLicense()
 			self.AnalyzeContextAge()
 			self.AnalyzeDependencies()
+			self.AnalyzePopularityMetrics()
+			self.AnalyzeMissingVersions()
+			self.AnalyzeIncreasingVersions()
+			self.AnalyzePackageURL()
+			
+
+		else:
+			print('Reverting to public popularity metrics of the package...')
+			print(separator)
+			
+			self.AnalyzePopularityMetrics()
+			self.AnalyzeMissingVersions()
+			self.AnalyzeIncreasingVersions()
+			self.AnalyzePackageURL()
 			
 		return self.res
 			
