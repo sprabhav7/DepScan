@@ -7,13 +7,11 @@ import sys
 from bs4 import BeautifulSoup
 from MetadataAnalyzer import MetadataAnalyzer
 from ParseUtil import Parser
+from TypoSquattingAnalyzer import TypoSquattingAnalyzer
+from DependencyConfusionAnalyzer import DependencyConfusionAnalyzer
 
 
-repo_list = {
-1: 'GEMS_REPO',
-2: 'NPM_REPO',
-3: 'PYTHON_REPO'
-}
+separator = '---------------------------------------------------------------------------'
 
 if __name__ == "__main__":
     
@@ -46,24 +44,30 @@ if __name__ == "__main__":
     
     for package in packages:
         package_name = package.replace('\n','')
-        print(f'Analyzing package : {package_name}')
-        parser = Parser(package_name,repo_list[repo])
+        print(f'Analyzing package : {package_name}\n')
+        print(separator+'\n')
+        parser = Parser(package_name,repo)
         remote_pkg_metadata = parser.FetchAndParseRemote()
         local_pkg_metadata = parser.FetchAndParseLocal()
-        print('Analyzing package for issues related to metadata\n\n')
-        '''with open('npm_remote_md','w') as f:
-            json.dump(remote_pkg_metadata,f,indent=4)
         
-        with open('npm_local_md','w') as f:
-            json.dump(local_pkg_metadata,f,indent=4)
-        
-        break'''
         b_metadata_analysis_res = ''
 
         if local_pkg_metadata:
-            b_metadata_analysis_res = MetadataAnalyzer.Analyzer(remote_pkg_metadata,local_pkg_metadata,repo)
+            #b_metadata_analysis_res = MetadataAnalyzer.Analyzer(remote_pkg_metadata,local_pkg_metadata,repo)
+            b_attack_analysis_res = TypoSquattingAnalyzer(remote_pkg_metadata,repo).analyze()
+            #b_attack_analysis_res = DependencyConfusionAnalyzer(remote_pkg_metadata,repo).analyze()
         else:
-            b_metadata_analysis_res = MetadataAnalyzer.Analyzer(remote_pkg_metadata,None,repo)
+            #b_metadata_analysis_res = MetadataAnalyzer.Analyzer(remote_pkg_metadata,None,repo)
+            b_attack_analysis_res = TypoSquattingAnalyzer(remote_pkg_metadata,repo).analyze()
+            #b_attack_analysis_res = DependencyConfusionAnalyzer(remote_pkg_metadata,repo).analyze()
         
-        print(b_metadata_analysis_res)
+        '''for key,values in b_metadata_analysis_res.items():
+        	if len(values) >0:
+        		print(key+":")
+        		if not isinstance(values, list):
+        		    print(values)
+        		else:
+        		    for value in values:
+        			    print(value)'''
+        #break
         print('\n')
