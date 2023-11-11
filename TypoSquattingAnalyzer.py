@@ -11,7 +11,8 @@ from bs4 import BeautifulSoup
 from ParseUtil import Parser
 import concurrent.futures
 import subprocess
-from multiprocessing import Process
+from multiprocessing import Process,Pool
+from threading import Thread
 
 safe_repo_list = {
 1: 'https://rubygems.org/api/v1/gems/',
@@ -59,6 +60,7 @@ class TypoSquattingAnalyzer:
 	
 	def analyze(self):
 		if self.remote_metadata:
+			print('Starting typo squatting analyzer')
 			self.package_name = self.remote_metadata['name']
 			self.GenerateTypos(self.remote_metadata['name'])
 			self.FetchPackages()
@@ -80,41 +82,59 @@ class TypoSquattingAnalyzer:
 	def GenerateTypos(self,package_name):
 		typos = []
 		typos_str = self.GenerateValidTypoPool()
+		
 		# Generate typos by insertion
-		for i in range(len(package_name) + 1):
+		def insertion_typo_thread(i):
 		  	for letter in typos_str:
 		  		typo = package_name[:i] + letter + package_name[i:]
 		  		if typo not in typos:
 		  			typos.append(typo)
-		  
+	  
 		# Generate typos by deletion
-		for i in range(len(package_name)):
+		def deletion_typo_thread(i):
 			typo = package_name[:i] + package_name[i + 1:]
 			if typo not in typos:
 		  			typos.append(typo)
-		  
-		# Generate typos by substitution
-		for i in range(len(package_name)):
+	
+		# Generate typos by substitution	
+		def substitution_typo_thread(i):  
 			for letter in typos_str:
 				typo = package_name[:i] + letter + package_name[i + 1:]
 				if typo not in typos:
 		  			typos.append(typo)
-		  
+	
 		# Generate typos by transposition
-		for i in range(len(package_name) - 1):
+		def transposition_typo_thread(i):
 			typo = package_name[:i] + package_name[i + 1] + package_name[i] + package_name[i + 2:]
 			if typo not in typos:
 		  			typos.append(typo)
-			
+	
 		# Generate typos by numeric extension
-		for i in range(len(package_name) - 1):
+		def num_ext_typo_thread(i):
 			typo = package_name+str(i%10)
 			if typo not in typos:
 		  			typos.append(typo)
+	
+		for i in range(len(package_name) + 1):
+			insertion_typo_thread(i)
+		
+		for i in range(len(package_name)):
+			deletion_typo_thread(i)
+		
+		for i in range(len(package_name)):
+			substitution_typo_thread(i)
+	
+		for i in range(len(package_name) - 1):
+			transposition_typo_thread(i)
+	
+		for i in range(len(package_name) - 1):
+		 	num_ext_typo_thread(i)
 		
 		self.candidate_package_names = typos
 		
 	def FetchRemotePackage(self,url):
+		import sys
+		sys.stdout.flush()
 		metadata = self.parser.FetchAndParseRemoteTrusted(url)
 		if metadata is not None:
 			self.packages.append(metadata)
@@ -122,30 +142,34 @@ class TypoSquattingAnalyzer:
 	def FetchPackages(self):
 		self.parser = Parser(repo=self.repo)
 		urls = []
-
+		
 		for package in self.candidate_package_names:
 			url = safe_repo_list[self.repo]+package
 			if self.repo == 3:
 				url+= '/json'
 			elif self.repo == 2:
 				url+= '.json'
-			urls.append(url)
+			urls.append(url)	
 		
-		with concurrent.futures.ThreadPoolExecutor() as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
 			executor.map(self.FetchRemotePackage, urls)
 		
 		
 	def AnalyzePackagePopularity(self):
+		
+		if self.remote_metadata is None or self.remote_metadata['author'] is None or self.remote_metadata['downloads'] is None:
+			self.res['ALERT'].append(f'Package {self.remote_metadata["name"]} missing security features. Unable to analyze for typo squatting attacks')
+			return
 		pkg_download = int(self.remote_metadata['downloads'])
 		min_date = datetime.datetime.strptime(self.remote_metadata['age'], '%Y-%m-%dT%H:%M:%S')
 		for package in self.packages:
-			if int(package['downloads']) > pkg_download:
-				self.res['ALERT'].append('Package {remote_metadata["name"]} has squatted packages with similar popularity. Check for squatting attacks')
+			if int(package['downloads']) > pkg_download and package['name'] != self.remote_metadata['name']:
+				self.res['ALERT'].append(f'Package {self.remote_metadata["name"]} has squatted packages with similar popularity. Check for squatting attacks')
 				break
-			if datetime.datetime.strptime(package['age'], '%Y-%m-%dT%H:%M:%S') < min_date:
-				self.res['ALERT'].append('Package {remote_metadata["name"]} is now the oldest package in the squatting range. Check for squatting attacks')
+			if datetime.datetime.strptime(package['age'], '%Y-%m-%dT%H:%M:%S') < min_date and package['name'] != self.remote_metadata['name']:
+				self.res['ALERT'].append(f'Package {self.remote_metadata["name"]} is now the oldest package in the squatting range. Check for squatting attacks')
 				break
-			if package['author'] and package['author'] not in self.remote_metadata['author']:
-				self.res['ALERT'].append('Package {remote_metadata["name"]} might be squatted. Check for squatting attacks')
+			if package['author'] and package['author'] not in self.remote_metadata['author'] and package['name'] != self.remote_metadata['name']:
+				self.res['ALERT'].append(f'Package {self.remote_metadata["name"]} might be squatted. Check for squatting attacks')
 				break
 			
