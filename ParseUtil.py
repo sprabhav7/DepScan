@@ -2,7 +2,6 @@ import importlib
 import importlib.metadata
 import requests
 import json
-from MetadataAnalyzer import MetadataAnalyzer
 from bs4 import BeautifulSoup
 import gem
 import subprocess
@@ -17,9 +16,9 @@ PUBLIC REPO LIST
 '''
 
 repo_list = {
-'PYTHON_REPO': 'https://pypi.org/pypi/',
-'NPM_REPO': 'https://registry.npmjs.org/',
-'GEMS_REPO': 'https://rubygems.org/api/v1/gems/'
+3: 'https://pypi.org/pypi/',
+2: 'https://registry.npmjs.org/',
+1: 'https://rubygems.org/api/v1/gems/'
 }
 
 
@@ -29,13 +28,14 @@ class ParseMetadata:
 	
 		
 	def ParseMetadata(self, metadata,location):
-		if self.repo == 'PYTHON_REPO':
+		if self.repo == 3:
 			return self.ParsePythonPackageMetadata(metadata,location)
-		elif self.repo == 'NPM_REPO':
+		elif self.repo == 2:
 			return self.ParseNpmPackageMetadata(metadata,location)
 		else:
 			return self.ParseRubyPackageMetadata(metadata,location)
 			
+	
 	def ParsePythonPackageMetadata(self,metadata,location):
 		if metadata is None:
 			return None
@@ -53,6 +53,14 @@ class ParseMetadata:
 				parsed_metadata['project-url']= metadata['info']['home_page'] if 'home_page' in metadata['info'].keys() else None
 				parsed_metadata['dependencies'] = metadata['info']['requires_dist'] if 'requires_dist' in metadata['info'].keys() else None
 				parsed_metadata['versions'] = metadata['releases'] if 'releases' in metadata.keys() else None
+				
+				api_url = f'https://pypistats.org/api/packages/{metadata["info"]["name"]}/recent'
+				response = requests.get(api_url)
+				if response.status_code == 200:
+					parsed_metadata['downloads'] = response.json()['data']['last_week']
+				else:
+					parsed_metadata['downloads'] = 0
+				parsed_metadata['age'] = metadata['releases'][metadata['info']['version']][0]['upload_time']
 			
 			else:
 				parsed_metadata['name'] = metadata['name'] if 'Name' in metadata.keys() else None
@@ -70,7 +78,6 @@ class ParseMetadata:
 			if value == '':
 				parsed_metadata[key] = None
 		
-		
 		return parsed_metadata
 	
 	def ParseNpmPackageMetadata(self,metadata,location):
@@ -85,7 +92,7 @@ class ParseMetadata:
 		parsed_metadata['author'] = metadata['author'] if 'author' in metadata.keys() else None
 		parsed_metadata['project-url']= metadata['homepage'] if 'homepage' in metadata.keys() else None
 		parsed_metadata['dependencies'] = metadata['dependencies'] if 'dependencies' in metadata.keys() else None
-		parsed_metadata['time'] = metadata['time'] if 'time' in metadata.keys() else None
+		parsed_metadata['age'] = metadata['time'] if 'time' in metadata.keys() else None
 		parsed_metadata['keywords'] = metadata['keywords'] if 'keywords' in metadata.keys() else None
 		parsed_metadata['downloads'] = metadata['downloads'] if 'downloads' in metadata.keys() else None
 		if location == 'remote':
@@ -96,6 +103,7 @@ class ParseMetadata:
 				met_data = json.loads(output.stdout.decode())
 				parsed_metadata['version'] = met_data['version'] 
 				parsed_metadata['dependencies'] = met_data['dependencies'] if 'dependencies' in met_data.keys() else None
+	
 		return parsed_metadata
 	
 	def ParseRubyPackageMetadata(self,metadata,location):
@@ -112,24 +120,36 @@ class ParseMetadata:
 		if location == 'remote':
 			parsed_metadata['summary'] = metadata['info'] if 'info' in metadata.keys() else None
 			parsed_metadata['project-url']= metadata['homepage_uri'] if 'homepage_uri' in metadata.keys() else None
-			parsed_metadata['time'] = metadata['version_created_at'].split('T')[0] if 'time' in metadata.keys() else None
+			parsed_metadata['age'] = metadata['version_created_at'].split('.')[0] if 'version_created_at' in metadata.keys() else None
 			parsed_metadata['downloads'] = metadata['downloads'] if 'downloads' in metadata.keys() else None
+			parsed_metadata['versions'] = self.GetGemVersions(metadata['name'])
 		else:
 			parsed_metadata['summary'] = metadata['description'] if 'description' in metadata.keys() else None
 			parsed_metadata['project-url']= metadata['homepage'] if 'homepage' in metadata.keys() else None
-			parsed_metadata['time'] = metadata['date'].split('T')[0] if 'date' in metadata.keys() else None
+			parsed_metadata['age'] = metadata['date'].split('.')[0] if 'date' in metadata.keys() else None
 								
 		
 		return parsed_metadata
+	
+	def GetGemVersions(self,package_name):
+		url = f"https://rubygems.org/api/v1/versions/{package_name}.json"
+		response = requests.get(url)
 		
+		if response.status_code == 200:
+			versions_data = response.json()
+			return [version["number"] for version in versions_data]
+		else:
+			return None
 		
 class FetchMetadata:
 	def __init__(self,package_name,repo):
+		if package_name is None:
+			return
 		self.package_name = package_name
 		self.repo = repo
-		if repo == 'PYTHON_REPO':
+		if repo == 3:
 			self.url = repo_list[repo]+package_name+"/json"
-		elif repo == 'GEMS_REPO':
+		elif repo == 1:
 			self.url = repo_list[repo]+package_name+".json"
 		else:
 			self.url = repo_list[repo]+package_name
@@ -167,9 +187,9 @@ class FetchMetadata:
 		
 		
 	def FetchLocalMetadata(self):
-		if self.repo == 'PYTHON_REPO':
+		if self.repo == 3:
 			return self.IsPythonPackageInstalled(self.package_name)
-		elif self.repo == 'NPM_REPO':
+		elif self.repo == 2:
 			return self.IsNpmPackageInstalled(self.package_name)
 		else:
 			return self.IsRubyPackageInstalled(self.package_name)
@@ -180,21 +200,31 @@ class FetchMetadata:
 		response = requests.get(url)
 		if response.status_code == 200:
 			return json.loads(response.content.decode())
+			
+		else:
+			return None
+	
+	def FetchFromTrusted(self,url):
+		response = requests.get(url)
+		if response.status_code == 200:
+			return json.loads(response.content.decode())
 		else:
 			return None
 
+	
 
 class Parser:
-	def __init__(self,package_name,repo):
+	def __init__(self,package_name=None,repo=None):
 		self.fetcher = FetchMetadata(package_name,repo)
 		self.parser = ParseMetadata(repo)
 		self.package_name = package_name
 	
 	def FetchAndParseLocal(self):
-		#return self.fetcher.FetchLocalMetadata()
 		return self.parser.ParseMetadata(self.fetcher.FetchLocalMetadata(),'local')
 		
 	def FetchAndParseRemote(self):
-		#return self.fetcher.FetchRemoteMetadata()
 		return self.parser.ParseMetadata(self.fetcher.FetchRemoteMetadata(),'remote')
+		
+	def FetchAndParseRemoteTrusted(self,url):
+		return self.parser.ParseMetadata(self.fetcher.FetchFromTrusted(url),'remote')
 		
