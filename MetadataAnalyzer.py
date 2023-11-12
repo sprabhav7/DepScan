@@ -18,13 +18,13 @@ class AnalysisBuilder:
         self.repo = repo_list[repo]
 
     def analyze(self, remote_metadata, local_metadata):
+        print('INFO: Starting metadata analysis...')
         if self.repo == 'PYTHON_REPO':
         	analyzer = PythonMetadataAnalyzer(remote_metadata, local_metadata)
         elif self.repo == 'NPM_REPO':
         	analyzer = NpmMetadataAnalyzer(remote_metadata, local_metadata)
         else:
         	analyzer = RubyMetadataAnalyzer(remote_metadata, local_metadata)
-        	
         return analyzer.analyze()
 
 class MetadataAnalyzer:
@@ -32,4 +32,6 @@ class MetadataAnalyzer:
 		if remote_metadata is None:
 			return {'FATAL':'MetadataAnalyzer:Unable to fetch metadata for package from public repository, check package information...'}
 		analysis_builder = AnalysisBuilder(repo)
-		return analysis_builder.analyze(remote_metadata, local_metadata)
+		res_dict = {'Metadata-Analysis':analysis_builder.analyze(remote_metadata, local_metadata)}
+		print('INFO: Done...')
+		return res_dict 
