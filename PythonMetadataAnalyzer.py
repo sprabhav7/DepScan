@@ -20,8 +20,9 @@ class PythonMetadataAnalyzer:
 		
 	def analyze(self):
 		self.AnalyzeBaseFeatureSet()
-			
 		if self.local_metadata is not None:
+		
+			print('INFO: Local metadata found, setting local context for analysis...')
 			self.AnalyzeVersions()
 			self.AnalyzeAuthor()
 			self.AnalyzeMaintainers()
@@ -37,7 +38,7 @@ class PythonMetadataAnalyzer:
 			
 
 		else:
-			
+			print('INFO: Local metadata not found, reverting to popularity metrics for analysis...')
 			self.AnalyzePopularityMetrics()
 			self.AnalyzeMissingVersions()
 			self.AnalyzeIncreasingVersions()
@@ -53,11 +54,11 @@ class PythonMetadataAnalyzer:
 			for key in self.keys:
 				if self.remote_metadata[key] is None:
 					if not self.local_metadata[key] is None:
-						self.res['WARN'].append(f'AnalyzeBaseFeatureSet:Mismatch between local and remote packages. {key}')
-		'''else:
+						self.res['WARN'].append(f'AnalyzeBaseFeatureSet:Mismatch between local and remote {key} packages.')
+		else:
 			for key in self.keys:
 				if self.remote_metadata[key] is None:
-					self.res['WARN'].append(f'AnalyzeBaseFeatureSet:Security metadata feature that does not have a value. {key}') '''
+					self.res['WARN'].append(f'AnalyzeBaseFeatureSet:A security metadata feature {key} does not have a value.') 
 	
 	def AnalyzeVersions(self):
 		
