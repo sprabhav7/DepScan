@@ -19,7 +19,7 @@ safe_repo_list = {
 
 class DependencyConfusionAnalyzer:
 	def __init__(self, remote_metadata,repo):
-		print('Starting dependency confusion analyzer')
+		print('INFO: Starting dependency confusion analysis...')
 		self.remote_metadata= remote_metadata
 		self.trusted_metadata = None
 		self.repo = repo
@@ -29,11 +29,13 @@ class DependencyConfusionAnalyzer:
 	def analyze(self):
 		self.FetchFromTrusted()
 		self.ValidatePackageDetails()
+		print('INFO: Done...')
 		return self.res
+		
 	
 	def FetchFromTrusted(self):
 		if self.remote_metadata is None:
-			print('Unable to run tests\n')
+			print('ERROR: Unable to run tests\n')
 			return
 		url = safe_repo_list[self.repo]+self.remote_metadata['name']
 		if self.repo == 3:
