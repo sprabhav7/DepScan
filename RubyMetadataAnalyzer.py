@@ -23,6 +23,7 @@ class RubyMetadataAnalyzer:
 		
 		if self.local_metadata is not None:
 		
+			print('INFO: Local metadata found, setting local context for analysis...')
 			self.AnalyzeVersions() #maybe remove
 			self.AnalyzeAuthor()
 			self.AnalyzeProjectURL()
@@ -37,7 +38,8 @@ class RubyMetadataAnalyzer:
 			
 
 		else:
-			
+		
+			print('INFO: Local metadata not found, reverting to popularity metrics for analysis...')
 			self.AnalyzePopularityMetrics()
 			self.AnalyzeMissingVersions()
 			self.AnalyzeIncreasingVersions()
@@ -52,11 +54,11 @@ class RubyMetadataAnalyzer:
 			for key in self.keys:
 				if self.remote_metadata[key] is None:
 					if not self.local_metadata[key] is None:
-						self.res.update['WARN'].append(f'AnalyzeBaseFeatureSet:Mismatch between local and remote packages.')
+						self.res.update['WARN'].append(f'AnalyzeBaseFeatureSet:Mismatch between local and remote {key} packages.')
 		else:
 			for key in self.keys:
 				if self.remote_metadata[key] is None:
-					self.res['WARN'].append(f'AnalyzeBaseFeatureSet:A security metadata feature that does not have a value.') 
+					self.res['WARN'].append(f'AnalyzeBaseFeatureSet:A security metadata feature {key} does not have a value.') 
 	
 	def AnalyzeVersions(self):
 		if self.local_metadata['version'] and self.local_metadata['version']['version']  not in self.remote_metadata['versions']:
@@ -133,4 +135,4 @@ class RubyMetadataAnalyzer:
 
 		# Verify the SSL/TLS certificate
 		if not response.ok:
-			self.res['ALERT'].append(f'AnalyzePackageURL: Invalid certificate detected for the package')        
+			self.res['ALERT'].append(f'AnalyzePackageURL: Invalid certificate detected for the package')
