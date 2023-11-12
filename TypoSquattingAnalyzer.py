@@ -60,14 +60,18 @@ class TypoSquattingAnalyzer:
 	
 	def analyze(self):
 		if self.remote_metadata:
-			print('Starting typo squatting analyzer')
+			print('INFO: Starting typo squatting analysis...')
+			if self.remote_metadata is None or self.remote_metadata['author'] is None or self.remote_metadata['downloads'] is None:
+				print(f'ERROR : Package {self.remote_metadata["name"]} missing security features. Unable to analyze for typo squatting attacks')
+				return
 			self.package_name = self.remote_metadata['name']
 			self.GenerateTypos(self.remote_metadata['name'])
 			self.FetchPackages()
 			self.AnalyzePackagePopularity()
 		else:
-			print('No package information to validate')
+			print('ERRORL No package information to validate')
 		
+		print('INFO: Done...')
 		return self.res
 		
 	
@@ -147,29 +151,26 @@ class TypoSquattingAnalyzer:
 			url = safe_repo_list[self.repo]+package
 			if self.repo == 3:
 				url+= '/json'
-			elif self.repo == 2:
+			elif self.repo == 1:
 				url+= '.json'
 			urls.append(url)	
 		
-		with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+		with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
 			executor.map(self.FetchRemotePackage, urls)
 		
 		
 	def AnalyzePackagePopularity(self):
-		
-		if self.remote_metadata is None or self.remote_metadata['author'] is None or self.remote_metadata['downloads'] is None:
-			self.res['ALERT'].append(f'Package {self.remote_metadata["name"]} missing security features. Unable to analyze for typo squatting attacks')
-			return
 		pkg_download = int(self.remote_metadata['downloads'])
 		min_date = datetime.datetime.strptime(self.remote_metadata['age'], '%Y-%m-%dT%H:%M:%S')
 		for package in self.packages:
-			if int(package['downloads']) > pkg_download and package['name'] != self.remote_metadata['name']:
-				self.res['ALERT'].append(f'Package {self.remote_metadata["name"]} has squatted packages with similar popularity. Check for squatting attacks')
-				break
-			if datetime.datetime.strptime(package['age'], '%Y-%m-%dT%H:%M:%S') < min_date and package['name'] != self.remote_metadata['name']:
-				self.res['ALERT'].append(f'Package {self.remote_metadata["name"]} is now the oldest package in the squatting range. Check for squatting attacks')
-				break
-			if package['author'] and package['author'] not in self.remote_metadata['author'] and package['name'] != self.remote_metadata['name']:
-				self.res['ALERT'].append(f'Package {self.remote_metadata["name"]} might be squatted. Check for squatting attacks')
-				break
+			count = 0
+			if int(package['downloads']) > pkg_download and package['downloads'] < 5000:
+				count+=1
+			if datetime.datetime.strptime(package['age'], '%Y-%m-%dT%H:%M:%S') < min_date:
+				count+=1
+			if package['author'] and package['author'] not in self.remote_metadata['author']:
+				count+=1
 			
+			if count == 3:
+				self.res['ALERT'].append(f'Package {self.remote_metadata["name"]} might be squatted by {package["name"]}. Recheck the package name and public repository.')
+				break
