@@ -18,9 +18,8 @@ class NpmMetadataAnalyzer:
 	def analyze(self):
 		self.AnalyzeBaseFeatureSet()
 		
-		
 		if self.local_metadata is not None:
-			
+			print('INFO: Local metadata found, setting local context for analysis...')
 			self.AnalyzeVersions()
 			self.AnalyzeAuthor()
 			self.AnalyzeMaintainers()
@@ -38,11 +37,13 @@ class NpmMetadataAnalyzer:
 
 		else:
 			
+			print('INFO: Local metadata not found, reverting to popularity metrics for analysis...')
 			self.AnalyzePopularityMetrics()
 			self.AnalyzeMissingVersions()
 			self.AnalyzeIncreasingVersions()
 			self.AnalyzePackageURL()
-			
+		
+		
 		return self.res
 			
 	def AnalyzeBaseFeatureSet(self):
@@ -51,11 +52,11 @@ class NpmMetadataAnalyzer:
 			for key in self.keys:
 				if self.remote_metadata[key] is None:
 					if not self.local_metadata[key] is None:
-						self.res['WARN'].append(f'AnalyzeBaseFeatureSet:Mismatch between local and remote packages. {key}')
+						self.res.update['WARN'].append(f'AnalyzeBaseFeatureSet:Mismatch between local and remote {key} packages.')
 		else:
 			for key in self.keys:
 				if self.remote_metadata[key] is None:
-					self.res['WARN'].append(f'AnalyzeBaseFeatureSet:A security metadata feature that does not have a value. {key}') 
+					self.res['WARN'].append(f'AnalyzeBaseFeatureSet:A security metadata feature {key} does not have a value.')
 	
 	def AnalyzeVersions(self):
 		if self.local_metadata['version'] and not self.local_metadata['version'] in self.remote_metadata['versions'].keys():
