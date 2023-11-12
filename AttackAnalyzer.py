@@ -19,4 +19,3 @@ class AttackAnalyzer:
 			self.res['Typosquatting-Analysis'] = TypoSquattingAnalyzer(self.remote_metadata,self.repo).analyze()
 		
 		return self.res
-		
