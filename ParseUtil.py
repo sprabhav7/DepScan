@@ -227,4 +227,3 @@ class Parser:
 		
 	def FetchAndParseRemoteTrusted(self,url):
 		return self.parser.ParseMetadata(self.fetcher.FetchFromTrusted(url),'remote')
-		
