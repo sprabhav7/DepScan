@@ -11,7 +11,7 @@ from AttackAnalyzer import AttackAnalyzer
 
 
 def usage():
-	print('USAGE\npython3 depcheck.py <VALUE> <FILE NAME> <OPTIONAL ARGS> <REPORT FILE>')
+	print('USAGE\npython3 depscan.py <VALUE> <FILE NAME> <OPTIONAL ARGS> <REPORT FILE>')
 	print('\nVALUE')
 	print('1	GEMS Packages')
 	print('2	NPM Packages')
@@ -20,9 +20,8 @@ def usage():
 	print('-a	run all attack analysis checks')
 	print('-d	run dependency confusion analysis checks')
 	print('-t	run typosquatting analysis checks')
-	print('-o	output report to reports.txt')
 	print('\nREPORT FILE')
-	print('Analyzer output is written to a report file with name REPORT_FILE')
+	print('Analyzer output is written to a report file with name REPORT_FILE. If nothing is provided, will be return to console.')
 	exit(0)
 
 if __name__ == "__main__":
@@ -54,13 +53,13 @@ if __name__ == "__main__":
         out_file = None
     
     if repo == 1:
-    	print('Initializing Gems Analyzer...')
+    	print('INFO: Initializing Gems Analyzer...')
     elif repo == 2:
-    	print('Initializing NPM Analyzer...')
+    	print('INFO: Initializing NPM Analyzer...')
     elif repo == 3:
-    	print('Initializing Python Analyzer...')
+    	print('INFO: Initializing Python Analyzer...')
     else:
-    	print('Invalid selection, try again...')
+    	print('ERROR: Invalid selection, try again...')
     	exit(1)
     	
     with open(file_path,"r") as f:
@@ -70,7 +69,7 @@ if __name__ == "__main__":
     
     for package in packages:
         package_name = package.replace('\n','')
-        print(f'Analyzing package : {package_name}')
+        print(f'\nINFO: Analyzing package : {package_name}')
         parser = Parser(package_name,repo)
         remote_pkg_metadata = parser.FetchAndParseRemote()
         local_pkg_metadata = parser.FetchAndParseLocal()
@@ -82,6 +81,7 @@ if __name__ == "__main__":
         b_analysis_res[package_name].update(b_attack_analysis_res)
         
     
+    print('\nINFO: Report has been generated\n')
     if out_file is None:
         print(json.dumps(b_analysis_res,indent=4))
     else:
